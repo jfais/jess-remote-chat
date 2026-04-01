@@ -31,8 +31,16 @@ async function registerPlugins() {
     limits: { fileSize: 10 * 1024 * 1024 },
     attachFieldsToBody: true
   });
-  await app.register(staticPlugin, { root: path.join(__dirname, 'public'), prefix: '/' });
-  await app.register(staticPlugin, { root: UPLOAD_DIR, prefix: '/uploads/' });
+  await app.register(staticPlugin, { root: path.join(__dirname, 'public'), setHeaders: (res) => res.setHeader('x-foo', 'bar') });
+  
+  app.get('/uploads/:file', async (req, reply) => {
+    const filepath = path.join(UPLOAD_DIR, req.params.file);
+    if (fs.existsSync(filepath)) {
+      return reply.send(filepath);
+    }
+    reply.code(404);
+    return { error: 'File not found' };
+  });
 }
 
 function readQueue(file) {
@@ -145,7 +153,7 @@ app.get('/api/status', async (req, reply) => {
   };
 });
 
-app.get('*', async (req, reply) => {
+app.setNotFoundHandler((req, reply) => {
   return reply.sendFile('index.html');
 });
 
