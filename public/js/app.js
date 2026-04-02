@@ -2,7 +2,18 @@ const API_BASE = '';
 const POLL_INTERVAL = 2000;
 const MAX_RETRIES = 3;
 
-let sessionId = localStorage.getItem('jessSessionId') || crypto.randomUUID();
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return generateUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+let sessionId = localStorage.getItem('jessSessionId') || generateUUID();
 localStorage.setItem('jessSessionId', sessionId);
 
 let messages = JSON.parse(localStorage.getItem('jessMessages') || '[]');
@@ -237,7 +248,7 @@ async function sendMessage() {
   }
 
   const msg = {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     sender: 'user',
     type: pendingFile ? 'attachment' : 'text',
     content,
