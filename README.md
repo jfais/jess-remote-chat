@@ -1,16 +1,18 @@
 # Jess Remote Chat
 
-Remote web chat interface for Jess CLI via Tailscale network.
+Remote web chat interface for AI CLI tools (Kilo/Jess, Claude Code, OpenCode) via Tailscale network.
 
 ## Features
 
+- **Multi-CLI Support** - Switch between Kilo, Claude Code, and OpenCode
 - **Real-time Chat** - Message queue system with polling
-- **Dark/Light Mode** - Toggle with persist preference
+- **Dark/Light Mode** - Toggle with persistent preference
 - **File Attachments** - Support images (JPG, PNG, GIF, WebP) and PDFs
 - **Message History** - localStorage persistence
 - **Markdown Rendering** - Code blocks, bold, italic, lists
 - **Keyboard Shortcuts** - Enter to send, Shift+Enter for newline
-- **Copy Messages** - One-click copy Jess responses
+- **Copy Messages** - One-click copy responses
+- **Settings Page** - Configure CLI tool and MemoryCore path
 - **Responsive Design** - Mobile-first UI
 - **Connection Status** - Online/offline indicator
 - **Typing Indicator** - Shows when waiting for response
@@ -18,14 +20,23 @@ Remote web chat interface for Jess CLI via Tailscale network.
 ## Architecture
 
 ```
-📱 Mobile/Laptop (Browser)
+📱 Browser (Mobile/Laptop)
        ↓ (Tailscale Network)
 🖥️ Jess PC (100.x.x.x)
    ├── Fastify Server (port 3000)
-   ├── /api/send → writes to message-queue.json
-   ├── /api/upload → saves file + writes to queue
-   ├── /api/poll → reads from response-queue.json
-   └── 📄 Chat UI (public/index.html)
+   ├── /api/send → queue/message-queue.json
+   ├── /api/poll ← queue/response-queue.json
+   ├── /api/settings → settings.json
+   └── 📄 Chat UI
+           ↓
+      ┌────┴────┐
+      │         │
+   Settings   Worker (CLI Processor)
+   (settings.json)     │
+      │         ├── Kilo
+      │         ├── Claude Code
+      │         └── OpenCode
+      └──┘
 ```
 
 ## Quick Start
@@ -42,38 +53,26 @@ npm install
 npm start
 ```
 
-Server runs on `http://0.0.0.0:3000`
+### 3. Start Worker (separate terminal)
 
-### 3. Access via Tailscale
+```bash
+npm run worker
+```
 
-From any device on your Tailscale network:
+### 4. Access via Tailscale
 
 ```
 http://[YOUR-TAILSCALE-IP]:3000
 ```
 
-## Kilo CLI Integration
+### 5. Configure CLI Tool
 
-To make Jess respond to messages, create a script that reads from the queue:
+Open Settings page: `http://[YOUR-TAILSCALE-IP]:3000/settings.html`
 
-```bash
-# Example: Process messages with Kilo CLI
-while true; do
-  MESSAGE=$(cat queue/message-queue.json | jq -r '.[0]')
-  if [ "$MESSAGE" != "null" ]; then
-    # Process with Kilo CLI
-    RESPONSE=$(echo "$MESSAGE" | kilo --process)
-    
-    # Write response
-    jq ". + [{ id: \"$(uuidgen)\", content: \"$RESPONSE\", timestamp: \"$(date -I)\" }]" \
-      queue/response-queue.json > tmp.json && mv tmp.json queue/response-queue.json
-    
-    # Remove processed message
-    jq '.[1:]' queue/message-queue.json > tmp.json && mv tmp.json queue/message-queue.json
-  fi
-  sleep 2
-done
-```
+Select your preferred CLI tool:
+- **Kilo CLI** - Jess AI Companion with MemoryCore
+- **Claude Code** - Anthropic's AI assistant
+- **OpenCode** - Open source AI coding tool
 
 ## API Endpoints
 
@@ -84,6 +83,48 @@ done
 | GET | `/api/poll` | Poll for new responses |
 | DELETE | `/api/clear` | Clear all queues |
 | GET | `/api/status` | Server status check |
+| GET | `/api/settings` | Get current settings |
+| POST | `/api/settings` | Update settings |
+| GET | `/api/cli-info` | Get CLI tool info |
+
+## Configuration
+
+Settings are stored in `settings.json`:
+
+```json
+{
+  "cli": "kilo",
+  "memoryPath": "/home/spsadmin/www/MemoryCore",
+  "pollInterval": 2000,
+  "autoStart": true
+}
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| cli | kilo | CLI tool to use (kilo, claude, opencode) |
+| memoryPath | /home/spsadmin/www/MemoryCore | Path to MemoryCore directory |
+| pollInterval | 2000 | Worker poll interval in ms |
+
+## CLI Tools
+
+### Kilo CLI (Default)
+```bash
+kilo ask "message"
+```
+Jess AI Companion with full MemoryCore integration.
+
+### Claude Code
+```bash
+claude -p "prompt"
+```
+Anthropic's CLI for AI-assisted coding.
+
+### OpenCode
+```bash
+opencode "message"
+```
+Open source AI coding assistant.
 
 ## Environment Variables
 
@@ -97,6 +138,7 @@ done
 - **Plugins**: @fastify/cors, @fastify/multipart, @fastify/static
 - **Frontend**: Vanilla HTML/CSS/JavaScript
 - **IPC**: JSON file queues
+- **Worker**: Node.js CLI processor
 
 ## License
 

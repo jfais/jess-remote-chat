@@ -1,14 +1,15 @@
 {
   "name": "jess-remote-chat",
-  "version": "1.0.0",
-  "description": "Remote web chat interface for Jess CLI via Tailscale",
+  "version": "1.1.0",
+  "description": "Remote web chat interface with multi-CLI support (Kilo, Claude Code, OpenCode)",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "worker": "node worker.js",
     "dev": "node --watch server.js"
   },
-  "keywords": ["chat", "cli", "tailscale", "remote-access"],
+  "keywords": ["chat", "cli", "tailscale", "remote-access", "claude-code", "opencode"],
   "author": "Jess",
   "license": "MIT",
   "dependencies": {

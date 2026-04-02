@@ -4,3 +4,4 @@ uploads/
 *.log
 .env
 .DS_Store
+settings.json

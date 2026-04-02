@@ -15,8 +15,33 @@ const app = fastify({ logger: true });
 const PORT = process.env.PORT || 3000;
 const QUEUE_DIR = path.join(__dirname, 'queue');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const MESSAGE_QUEUE = path.join(QUEUE_DIR, 'message-queue.json');
 const RESPONSE_QUEUE = path.join(QUEUE_DIR, 'response-queue.json');
+
+const DEFAULT_SETTINGS = {
+  cli: 'kilo',
+  memoryPath: '/home/spsadmin/www/MemoryCore',
+  pollInterval: 2000,
+  autoStart: true,
+  cliCommands: {
+    kilo: { command: 'kilo ask', args: ['--message'], prompt: 'You are Jess. MemoryCore is at {memoryPath}. Context: {context}' },
+    claude: { command: 'claude -p', args: [], prompt: 'You are Jess. MemoryCore is at {memoryPath}. Context: {context}' },
+    opencode: { command: 'opencode', args: [], prompt: 'You are Jess. MemoryCore is at {memoryPath}. Context: {context}' }
+  }
+};
+
+if (!fs.existsSync(SETTINGS_FILE)) {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(DEFAULT_SETTINGS, null, 2));
+}
+
+function readSettings() {
+  return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+}
+
+function writeSettings(settings) {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+}
 
 if (!fs.existsSync(QUEUE_DIR)) fs.mkdirSync(QUEUE_DIR, { recursive: true });
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -151,6 +176,38 @@ app.get('/api/status', async (req, reply) => {
     pendingMessages: msgQueue.length,
     pendingResponses: respQueue.length
   };
+});
+
+app.get('/api/settings', async (req, reply) => {
+  try {
+    const settings = readSettings();
+    return { success: true, settings };
+  } catch (err) {
+    reply.code(500);
+    return { success: false, error: err.message };
+  }
+});
+
+app.post('/api/settings', async (req, reply) => {
+  try {
+    const newSettings = req.body || {};
+    const current = readSettings();
+    const updated = { ...current, ...newSettings };
+    writeSettings(updated);
+    return { success: true, settings: updated };
+  } catch (err) {
+    reply.code(500);
+    return { success: false, error: err.message };
+  }
+});
+
+app.get('/api/cli-info', async (req, reply) => {
+  const settings = readSettings();
+  const { cli } = req.query;
+  if (cli && settings.cliCommands[cli]) {
+    return { success: true, info: settings.cliCommands[cli] };
+  }
+  return { success: true, info: settings.cliCommands[settings.cli] };
 });
 
 app.setNotFoundHandler((req, reply) => {
